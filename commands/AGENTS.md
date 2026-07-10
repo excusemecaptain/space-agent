@@ -74,7 +74,8 @@ Runtime resolution rules:
 - `WORKERS` sets the number of HTTP worker processes for `serve` and `supervise`; `1` keeps the single-process runtime
 - `LOGIN_ALLOWED` enables or disables password-login endpoints and the `/login` form while leaving the public shell available; it defaults to `true` and is frontend-exposed
 - `CLOUD_SHARE_ALLOWED` enables hosted cloud-share uploads on the receiving server; it defaults to `false` and depends on guest users plus `CUSTOMWARE_PATH`
-- `CLOUD_SHARE_URL` tells browser clients which hosted share receiver to use and which base URL should be returned in generated share links; it defaults to `share.space-agent.ai` and is frontend-exposed
+- `CLOUD_SHARE_URL` tells browser clients which hosted share receiver to use and which base URL should be returned in generated share links; it defaults to empty string, which causes the browser to auto-detect the share host from its current origin (self-hosted mode); set to an explicit `https://` URL only when the external hostname differs from the browser origin, for example behind a reverse proxy; is frontend-exposed
+- `CLOUD_SHARE_MAX_BYTES` sets the maximum upload size in bytes for a hosted cloud-share archive; defaults to `2097152` (2 MB) and may be raised up to `104857600` (100 MB) on self-hosted servers; is frontend-exposed so the browser can enforce the same limit client-side before uploading
 - `CUSTOMWARE_GIT_HISTORY` enables optional adaptive-debounced per-owner local Git history repositories for writable `L1` and `L2` roots; it defaults to `true`
 - `GIT_BACKEND` defaults to `auto` and selects the backend used by server-owned Git flows such as local history and Git-backed module installs; `auto` keeps the default `native -> isomorphic` fallback order
 - `USER_FOLDER_SIZE_LIMIT_BYTES` sets an optional byte cap for each on-disk `L2/<user>/` folder; `0` disables the cap
