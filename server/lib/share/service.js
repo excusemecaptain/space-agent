@@ -19,7 +19,7 @@ import {
 import { createGuestUser } from "../auth/user_manage.js";
 import { buildUserAbsolutePath } from "../auth/user_files.js";
 
-const CLOUD_SHARE_MAX_BYTES = 2 * 1024 * 1024;
+const CLOUD_SHARE_MAX_BYTES_DEFAULT = 2 * 1024 * 1024;
 const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const SHARE_TOKEN_LENGTH = 8;
 const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9]{8}$/u;
@@ -64,6 +64,38 @@ function normalizePositiveInteger(value, fallback = 0) {
 function isBase64UrlValue(value) {
   const candidate = String(value || "").trim();
   return Boolean(candidate) && BASE64URL_PATTERN.test(candidate);
+}
+
+function getCloudShareMaxBytes(runtimeParams) {
+  const configured =
+    runtimeParams && typeof runtimeParams.get === "function"
+      ? Number(runtimeParams.get("CLOUD_SHARE_MAX_BYTES", 0))
+      : 0;
+  return Number.isInteger(configured) && configured > 0 ? configured : CLOUD_SHARE_MAX_BYTES_DEFAULT;
+}
+
+function isHttpsOriginOrLocalhost(urlString) {
+  try {
+    const parsed = new URL(urlString);
+
+    if (parsed.protocol === "https:") {
+      return true;
+    }
+
+    if (parsed.protocol === "http:") {
+      const hostname = parsed.hostname.toLowerCase();
+      return (
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname.endsWith(".localhost")
+      );
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeCloudShareEncryptionMeta(value = {}) {
@@ -218,12 +250,31 @@ async function createHostedCloudShare(options = {}) {
     throw createShareError("Guest users are disabled on this server.", 404);
   }
 
+  const publicBaseUrl = normalizeCloudSharePublicBaseUrl(options.runtimeParams, options.requestUrl);
+
+  if (!publicBaseUrl) {
+    throw createShareError(
+      "Cloud sharing requires a public URL. Set CLOUD_SHARE_URL or ensure the server is reachable via HTTPS.",
+      503
+    );
+  }
+
+  if (!isHttpsOriginOrLocalhost(publicBaseUrl)) {
+    throw createShareError(
+      "Cloud sharing requires HTTPS. Configure CLOUD_SHARE_URL with an https:// address.",
+      400
+    );
+  }
+
   if (!payloadBuffer.length) {
     throw createShareError("Shared space uploads must not be empty.", 400);
   }
 
-  if (payloadBuffer.length > CLOUD_SHARE_MAX_BYTES) {
-    throw createShareError("Shared space uploads must be 2 MB or smaller.", 413);
+  const maxBytes = getCloudShareMaxBytes(options.runtimeParams);
+
+  if (payloadBuffer.length > maxBytes) {
+    const maxMb = (maxBytes / (1024 * 1024)).toFixed(0);
+    throw createShareError(`Shared space uploads must be ${maxMb} MB or smaller.`, 413);
   }
 
   const encryptionMeta = normalizeCloudShareEncryptionMeta(options.meta || {});
@@ -244,7 +295,7 @@ async function createHostedCloudShare(options = {}) {
 
   return {
     shareToken,
-    shareUrl: normalizeCloudSharePublicBaseUrl(options.runtimeParams, options.requestUrl) + "/share/space/" + shareToken
+    shareUrl: publicBaseUrl + "/share/space/" + shareToken
   };
 }
 
@@ -742,7 +793,6 @@ async function cloneHostedCloudShareToGuest(options = {}) {
 }
 
 export {
-  CLOUD_SHARE_MAX_BYTES,
   cloneHostedCloudShareToGuest,
   createHostedCloudShare,
   importSpaceArchiveForUser,

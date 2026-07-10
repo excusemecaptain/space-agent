@@ -27,7 +27,8 @@ Current storage contract:
 - the token is an 8-character mixed-case alphanumeric id
 - metadata currently stores `token`, `createdAt`, `lastUsedAt`, `sizeBytes`, `encrypted`, and optional browser-side encryption parameters
 - hosted uploads are accepted only when `CLOUD_SHARE_ALLOWED=true`, guest users are enabled, and `CUSTOMWARE_PATH` is configured
-- upload-time checks stay intentionally narrow: non-empty payload, maximum size `2 MB`, and well-formed optional password-encryption metadata
+- upload-time checks: non-empty payload, maximum size from `CLOUD_SHARE_MAX_BYTES` runtime param (default `2 MB`, max `100 MB`), HTTPS origin required (localhost exempt), and well-formed optional password-encryption metadata
+- the server computes `publicBaseUrl` via `normalizeCloudSharePublicBaseUrl` before accepting uploads; if no URL can be resolved or the resolved origin is not HTTPS, the upload is rejected with an explicit error
 - upload-time handlers must not unpack or deeply inspect the archive; archive validation belongs to the import and clone path
 
 Current validation contract:
@@ -65,7 +66,10 @@ Current guest-clone rules:
 - keep hosted-share storage outside the logical app tree and outside `server/tmp/`; `server/tmp/` is only for request-scoped extraction work
 - reuse this helper from endpoints and public share flows instead of duplicating token generation, ZIP validation, or destination naming elsewhere
 - keep browser-side password protection limited to opaque ZIP encryption metadata; the backend should treat encrypted uploads as opaque bytes until the browser submits the decrypted archive for clone or import
-- if hosted-share storage, archive validation, or install semantics change, update this file plus the matching docs in `server/api/AGENTS.md`, `server/pages/AGENTS.md`, and `app/L0/_all/mod/_core/documentation/docs/server/`
+- keep the HTTPS enforcement and `publicBaseUrl` resolution inside `service.js`; do not duplicate those checks in endpoint handlers
+- the `getCloudShareMaxBytes` helper reads `CLOUD_SHARE_MAX_BYTES` from `runtimeParams`; always use this helper instead of the module-local `CLOUD_SHARE_MAX_BYTES_DEFAULT` constant in upload paths
+- `isHttpsOriginOrLocalhost` is the canonical HTTPS gate; update it if new localhost-equivalent hostnames need to be allowed in development
+- if hosted-share storage, archive validation, install semantics, HTTPS rules, or size limits change, update this file plus the matching docs in `server/api/AGENTS.md`, `server/pages/AGENTS.md`, `commands/AGENTS.md`, and `app/L0/_all/mod/_core/documentation/docs/server/self-hosted-sharing.md`
 
 ## Verification
 
