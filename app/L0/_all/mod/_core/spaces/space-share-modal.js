@@ -295,6 +295,7 @@ const model = {
   busyAction: "",
   cloudErrorText: "",
   cloudShareBaseUrl: "",
+  cloudShareMaxBytes: 0,
   cloudSharePassword: "",
   cloudStatusText: "",
   currentSpace: null,
@@ -355,6 +356,7 @@ const model = {
     this.busyAction = "";
     this.cloudErrorText = "";
     this.cloudShareBaseUrl = "";
+    this.cloudShareMaxBytes = 0;
     this.cloudSharePassword = "";
     this.cloudStatusText = "";
     this.currentSpace = null;
@@ -402,7 +404,12 @@ const model = {
     activeRequest = request;
     this.activeRequestId = request.id;
     this.busyAction = "";
-    this.cloudShareBaseUrl = normalizeCloudShareBaseUrl(runtime.config?.get("CLOUD_SHARE_URL", "share.space-agent.ai"));
+    const configuredShareUrl = runtime.config?.get("CLOUD_SHARE_URL", "");
+    this.cloudShareBaseUrl = configuredShareUrl
+      ? normalizeCloudShareBaseUrl(configuredShareUrl)
+      : normalizeCloudShareBaseUrl(globalThis.location?.origin ?? "");
+    this.cloudShareMaxBytes =
+      Number(runtime.config?.get("CLOUD_SHARE_MAX_BYTES", CLOUD_SHARE_MAX_BYTES)) || CLOUD_SHARE_MAX_BYTES;
     this.cloudSharePassword = "";
     this.currentSpace = normalizedOptions.currentSpace;
     this.clearArchiveFeedback();
@@ -549,6 +556,27 @@ const model = {
       return;
     }
 
+    const httpsPattern = /^https:\/\//iu;
+
+    if (!httpsPattern.test(this.cloudShareBaseUrl)) {
+      let isLocalhost = false;
+
+      try {
+        const hostname = new URL(this.cloudShareBaseUrl).hostname.toLowerCase();
+        isLocalhost =
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname === "::1" ||
+          hostname.endsWith(".localhost");
+      } catch {}
+
+      if (!isLocalhost) {
+        this.cloudErrorText =
+          "Cloud sharing requires HTTPS. Ensure your server is reachable over https://.";
+        return;
+      }
+    }
+
     this.busyAction = "cloud";
     this.clearCloudFeedback();
     this.shareUrl = "";
@@ -568,8 +596,10 @@ const model = {
         encryption = encryptedPayload.encryption;
       }
 
-      if (uploadBytes.byteLength > CLOUD_SHARE_MAX_BYTES) {
-        throw new Error("Cloud shares must be 2 MB or smaller.");
+      const maxBytes = this.cloudShareMaxBytes || CLOUD_SHARE_MAX_BYTES;
+      if (uploadBytes.byteLength > maxBytes) {
+        const maxMb = (maxBytes / (1024 * 1024)).toFixed(0);
+        throw new Error(`Cloud shares must be ${maxMb} MB or smaller.`);
       }
 
       this.cloudStatusText = "Uploading cloud share...";
