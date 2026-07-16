@@ -84,6 +84,15 @@ Default section order:
 - Do not keep compatibility shims, alias paths, mirrored implementations, or generated artifacts unless the user explicitly asks for them.
 - Do not add tracked scratch, temporary, generated binary, staged release, or hidden throwaway repo content unless the user explicitly asks for a durable checked-in fixture.
 
+## Docker Deployment
+
+The repo ships with `Dockerfile`, `docker-compose.yml`, and `.dockerignore` at the root for self-hosted Docker deployments.
+
+- The Docker image uses `node:22-slim` with `unzip` and `git` pre-installed
+- `docker-compose.yml` pre-configures `CUSTOMWARE_PATH=/data` (Docker volume), `ALLOW_GUEST_USERS=true`, and `CLOUD_SHARE_ALLOWED=true`
+- `CLOUD_SHARE_URL` defaults to empty (auto-detect from browser origin) — set explicitly only behind a reverse proxy
+- Full deployment guide: `app/L0/_all/mod/_core/documentation/docs/server/docker-deployment.md`
+
 ## Child DOX Index
 
 - `/app/AGENTS.md` - app/ is the primary Space Agent runtime.

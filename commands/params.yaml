@@ -55,10 +55,16 @@ CLOUD_SHARE_ALLOWED:
   default: false
   frontend_exposed: false
 CLOUD_SHARE_URL:
-  description: Public cloud-share host or URL used by the spaces share modal for hosted uploads and links.
+  description: Public cloud-share host or URL used by the spaces share modal for hosted uploads and links. Leave empty to auto-detect from the server origin (self-hosted mode). Set to an https:// domain for a dedicated share host. Defaults to empty (self-hosted auto-detect).
   type: text
   allowed: ["*"]
-  default: share.space-agent.ai
+  default: ""
+  frontend_exposed: true
+CLOUD_SHARE_MAX_BYTES:
+  description: Maximum upload size in bytes for a hosted cloud-share archive. Defaults to 2 MB (2097152). Self-hosted operators can raise this up to 100 MB (104857600).
+  type: number
+  allowed: [1..104857600]
+  default: 2097152
   frontend_exposed: true
 CUSTOMWARE_GIT_HISTORY:
   description: Enable debounced local Git history repositories in writable L1 group and L2 user roots.
